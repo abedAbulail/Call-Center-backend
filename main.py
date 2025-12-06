@@ -85,22 +85,32 @@ def login(user: Login):
         {"email": user.email, "password": user.password}
     )
 
-    print(response)
-    return response
+    if response.get("error"):
+        # اطبع اللوج وأرجع رسالة خطأ للـ client
+        print("Login error:", response["error"])
+        raise HTTPException(status_code=401, detail=response["error"]["message"])
+
+    print("Login success:", response)
+    return {"session": response.get("data")}
 
 
+# التسجيل
 @app.post("/register")
 def register(user: Register):
     response = supabase.auth.sign_up(
         {
-            "Display name": user.user_name,
             "email": user.email,
             "password": user.password,
+            "options": {"data": {"DisplayName": user.user_name}},
         }
     )
 
-    print(response)
-    return response
+    if response.get("error"):
+        print("Register error:", response["error"])
+        raise HTTPException(status_code=400, detail=response["error"]["message"])
+
+    print("Register success:", response)
+    return {"session": response.get("data")}
 
 
 class AirtableQuery(BaseModel):
