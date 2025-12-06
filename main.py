@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Header, HTTPException, status , Depends
+from fastapi import FastAPI, Header, HTTPException, status, Depends
 from supabase import create_client, Client
 from pydantic import BaseModel
 from supabase_auth.errors import AuthApiError
@@ -15,7 +15,7 @@ base_id = os.getenv("BASE_ID")
 table_name = "Clients response"
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -23,16 +23,20 @@ app.add_middleware(
 
 
 class Login(BaseModel):
-    email:str
-    password:str
+    email: str
+    password: str
+
 
 class Register(BaseModel):
     user_name: str
-    email:str
-    password:str
+    email: str
+    password: str
+
+
 class Data(BaseModel):
-    name:str
-    number:str
+    name: str
+    number: str
+
 
 def verify_token(auth: str = Header(None)):
     if not auth:
@@ -90,7 +94,7 @@ def login(user: Login):
         if response.user is None:
             # Usually response.message has the error info
             return {"error": response.message or "Invalid login"}
-        
+
         # Access user and session as attributes
         return {"user": response.user, "session": response.session}
 
@@ -129,11 +133,10 @@ class AirtableQuery(BaseModel):
 
 
 @app.post("/airtable")
-def list_records(  query: AirtableQuery  , user = Depends(verify_token)):
+def list_records(user=Depends(verify_token)):
     url = f"https://api.airtable.com/v0/{base_id}/{table_name}"
     headers = {"Authorization": f"Bearer {AIRTABLE_TOKEN}"}
 
-    # Convert query to dict, remove None values
     params = {
         k: v
         for k, v in {
@@ -141,33 +144,30 @@ def list_records(  query: AirtableQuery  , user = Depends(verify_token)):
             "view": "Grid view",
             "cellFormat": "string",
             "fields": ["Name", "Number", "Intent", "Date"],
-        }
-        .items()
+        }.items()
         if v is not None
     }
 
-    # Airtable requires these if cellFormat = "string"
     if params.get("cellFormat") == "string":
         params.setdefault("timeZone", "UTC")
         params.setdefault("userLocale", "en")
 
     response = requests.get(url, headers=headers, params=params)
     data = response.json()
-    print (data)
 
-    # Optional: Filter only the columns you want
-    # if "records" in data and query.fields:
-    #     for record in data["records"]:
-    #         record["fields"] = {
-    #             k: v for k, v in record["fields"].items() if k in query.fields
-    #         }
+    # فلتر الـ records - بس اللي فيها Name
+    if "records" in data:
+        data["records"] = [
+            r for r in data["records"] if r.get("fields", {}).get("Name")
+        ]
 
+    print(data)
     return data
 
 
 @app.post("/airtable/save_clients")
-def save_clients(client: Data,user=Depends(verify_token)):
-    table_name="Clients"
+def save_clients(client: Data, user=Depends(verify_token)):
+    table_name = "Clients"
     url = f"https://api.airtable.com/v0/{base_id}/{table_name}"
 
     headers = {
