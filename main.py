@@ -81,17 +81,21 @@ supabase: Client = create_client(url, key)
 
 @app.post("/login")
 def login(user: Login):
-    response = supabase.auth.sign_in_with_password(
-        {"email": user.email, "password": user.password}
-    )
+    try:
+        response = supabase.auth.sign_in_with_password(
+            {"email": user.email, "password": user.password}
+        )
 
-    if response.get("error"):
-        # اطبع اللوج وأرجع رسالة خطأ للـ client
-        print("Login error:", response["error"])
-        raise HTTPException(status_code=401, detail=response["error"]["message"])
+        # Check for error using the attribute
+        if response.user is None:
+            # Usually response.message has the error info
+            return {"error": response.message or "Invalid login"}
+        
+        # Access user and session as attributes
+        return {"user": response.user, "session": response.session}
 
-    print("Login success:", response)
-    return {"session": response.get("data")}
+    except Exception as e:
+        return {"error": str(e)}
 
 
 # التسجيل
@@ -162,7 +166,7 @@ def list_records(  query: AirtableQuery  , user = Depends(verify_token)):
 
 
 @app.post("/airtable/save_clients")
-def save_clients(client: Data):
+def save_clients(client: Data,user=Depends(verify_token)):
     table_name="Clients"
     url = f"https://api.airtable.com/v0/{base_id}/{table_name}"
 
@@ -188,7 +192,7 @@ def save_clients(client: Data):
 
 
 @app.post("/airtable/getclients")
-def list_clients_records(query: AirtableQuery):
+def list_clients_records(query: AirtableQuery, user=Depends(verify_token)):
     table_name = "Clients"
 
     url = f"https://api.airtable.com/v0/{base_id}/{table_name}"
